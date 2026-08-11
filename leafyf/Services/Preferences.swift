@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 /// Every `UserDefaults` key the app uses, in one place so they cannot drift apart.
 enum StorageKey {
@@ -27,7 +28,7 @@ enum Appearance: String, CaseIterable, Identifiable, Sendable {
 
     var symbolName: String {
         switch self {
-        case .system: "iphone"
+        case .system: UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
         case .light: "sun.max"
         case .dark: "moon.stars"
         }

@@ -5,6 +5,8 @@ struct PlantLibraryView: View {
     var onSelect: ((PlantSpecies) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     @State private var searchText = ""
 
     private var results: [PlantSpecies] {
@@ -18,21 +20,24 @@ struct PlantLibraryView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 12) {
+                VStack(spacing: 12) {
                     disclaimer
-
-                    ForEach(results) { species in
-                        SpeciesCard(species: species, isSelectable: onSelect != nil) {
-                            onSelect?(species)
-                        }
-                    }
 
                     if results.isEmpty {
                         ContentUnavailableView.search(text: searchText)
                             .padding(.top, 40)
+                    } else if sizeClass.usesPadLayout {
+                        LazyVGrid(columns: PadGrid.columns(minimum: 380), spacing: 16) {
+                            speciesCards
+                        }
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            speciesCards
+                        }
                     }
                 }
-                .padding(Metrics.screenPadding)
+                .padding(Metrics.padding(for: sizeClass))
+                .maxContentWidth(Metrics.padContentWidth, enabled: sizeClass.usesPadLayout)
             }
             .background(Color.canvas.ignoresSafeArea())
             .navigationTitle("Plant library")
@@ -42,6 +47,19 @@ struct PlantLibraryView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(onSelect == nil ? "Done" : "Cancel") { dismiss() }
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var speciesCards: some View {
+        ForEach(results) { species in
+            SpeciesCard(
+                species: species,
+                isSelectable: onSelect != nil,
+                showsPointerEffect: sizeClass.usesPadLayout
+            ) {
+                onSelect?(species)
             }
         }
     }
@@ -63,6 +81,7 @@ struct PlantLibraryView: View {
 private struct SpeciesCard: View {
     let species: PlantSpecies
     let isSelectable: Bool
+    var showsPointerEffect = false
     let onTap: () -> Void
 
     var body: some View {
@@ -102,6 +121,7 @@ private struct SpeciesCard: View {
             .card()
         }
         .buttonStyle(.plain)
+        .pointerLift(showsPointerEffect && isSelectable)
         .disabled(!isSelectable)
     }
 }

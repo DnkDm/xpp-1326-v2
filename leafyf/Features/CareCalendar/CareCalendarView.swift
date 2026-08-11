@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct CareCalendarView: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query(sort: \Plant.name) private var plants: [Plant]
 
     @State private var visibleMonth = Calendar.current.startOfMonth(for: .now)
@@ -18,22 +19,44 @@ struct CareCalendarView: View {
         CareSchedule.occurrencesByDay(for: plants, in: monthInterval, calendar: calendar)
     }
 
+    /// Roomier day cells on iPad, where the grid is both wider and further from the eye.
+    private var dayCellHeight: CGFloat {
+        sizeClass.usesPadLayout ? 60 : 46
+    }
+
     var body: some View {
-        NavigationStack {
+        WidthReader { width in
+            // The month grid needs a fixed slice of the width to stay legible, so the
+            // split only happens when what is left over is still worth reading.
+            let isSplit = sizeClass.usesPadLayout && width >= Metrics.padTwoColumnWidth
+
             ScrollView {
-                VStack(spacing: Metrics.sectionSpacing) {
-                    monthCard
-                    dayDetail
+                Group {
+                    if isSplit {
+                        HStack(alignment: .top, spacing: Metrics.padColumnSpacing) {
+                            monthCard
+                                .frame(width: 420)
+
+                            dayDetail
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                    } else {
+                        VStack(spacing: Metrics.spacing(for: sizeClass)) {
+                            monthCard
+                            dayDetail
+                        }
+                    }
                 }
-                .padding(Metrics.screenPadding)
+                .padding(Metrics.padding(for: sizeClass))
+                .maxContentWidth(Metrics.padContentWidth, enabled: sizeClass.usesPadLayout)
             }
             .background(Color.canvas.ignoresSafeArea())
-            .navigationTitle("Calendar")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Today") { goToToday() }
-                        .disabled(calendar.isDateInToday(selectedDay) && isViewingCurrentMonth)
-                }
+        }
+        .navigationTitle("Calendar")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Today") { goToToday() }
+                    .disabled(calendar.isDateInToday(selectedDay) && isViewingCurrentMonth)
             }
         }
     }
@@ -46,7 +69,7 @@ struct CareCalendarView: View {
             weekdayHeader
             monthGrid
         }
-        .card(padding: 12)
+        .card(padding: sizeClass.usesPadLayout ? 16 : 12)
     }
 
     private var monthHeader: some View {
@@ -91,7 +114,7 @@ struct CareCalendarView: View {
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 4) {
             ForEach(0..<leadingBlankDays, id: \.self) { index in
                 Color.clear
-                    .frame(height: 46)
+                    .frame(height: dayCellHeight)
                     .id("blank-\(index)")
             }
 
@@ -100,7 +123,9 @@ struct CareCalendarView: View {
                     day: day,
                     occurrences: occurrences[day] ?? [],
                     isSelected: calendar.isDate(day, inSameDayAs: selectedDay),
-                    isToday: calendar.isDateInToday(day)
+                    isToday: calendar.isDateInToday(day),
+                    isRegular: sizeClass.usesPadLayout,
+                    height: dayCellHeight
                 ) {
                     withAnimation(.snappy) { selectedDay = day }
                 }
@@ -211,6 +236,8 @@ private struct DayCell: View {
     let occurrences: [CareOccurrence]
     let isSelected: Bool
     let isToday: Bool
+    var isRegular = false
+    var height: CGFloat = 46
     let onTap: () -> Void
 
     private var isPast: Bool { day < Calendar.current.startOfDay(for: .now) }
@@ -227,24 +254,26 @@ private struct DayCell: View {
         Button(action: onTap) {
             VStack(spacing: 3) {
                 Text(day, format: .dateTime.day())
-                    .font(.footnote.weight(isToday ? .bold : .regular))
+                    .font(isRegular ? .body : .footnote)
+                    .fontWeight(isToday ? .bold : .regular)
                     .foregroundStyle(numberColor)
-                    .frame(width: 30, height: 30)
+                    .frame(width: isRegular ? 40 : 30, height: isRegular ? 40 : 30)
                     .background(background, in: Circle())
 
                 HStack(spacing: 3) {
                     ForEach(Array(dotColors.enumerated()), id: \.offset) { _, color in
                         Circle()
                             .fill(color)
-                            .frame(width: 4, height: 4)
+                            .frame(width: isRegular ? 5 : 4, height: isRegular ? 5 : 4)
                     }
                 }
                 .frame(height: 5)
             }
-            .frame(height: 46)
+            .frame(height: height)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .pointerLift(isRegular)
         .accessibilityLabel(day.formatted(.dateTime.day().month(.wide)))
         .accessibilityValue(occurrences.isEmpty ? "No tasks" : Format.tasks(occurrences.count))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -272,6 +301,8 @@ extension Calendar {
 }
 
 #Preview {
-    CareCalendarView()
-        .modelContainer(PreviewData.container)
+    NavigationStack {
+        CareCalendarView()
+    }
+    .modelContainer(PreviewData.container)
 }

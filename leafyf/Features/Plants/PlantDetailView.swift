@@ -8,27 +8,23 @@ struct PlantDetailView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var isEditing = false
     @State private var isConfirmingDelete = false
     @State private var photoItem: PhotosPickerItem?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                hero
-
-                VStack(spacing: Metrics.sectionSpacing) {
-                    quickActions
-                    schedule
-                    if !plant.notes.isEmpty { notes }
-                    if !plant.journal.isEmpty { photoStrip }
-                    history
+        WidthReader { width in
+            ScrollView {
+                if sizeClass.usesPadLayout && width >= Metrics.padTwoColumnWidth {
+                    twoColumnBody
+                } else {
+                    columnBody
                 }
-                .padding(Metrics.screenPadding)
             }
+            .background(Color.canvas.ignoresSafeArea())
         }
-        .background(Color.canvas.ignoresSafeArea())
         .navigationTitle(plant.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -70,6 +66,47 @@ struct PlantDetailView: View {
         }
     }
 
+    // MARK: - Layouts
+
+    private var columnBody: some View {
+        VStack(spacing: 0) {
+            hero
+
+            VStack(spacing: Metrics.sectionSpacing) {
+                quickActions
+                schedule
+                if !plant.notes.isEmpty { notes }
+                if !plant.journal.isEmpty { photoStrip }
+                history
+            }
+            .padding(Metrics.screenPadding)
+        }
+    }
+
+    /// iPad: care on the left, the record of what happened on the right.
+    private var twoColumnBody: some View {
+        VStack(spacing: 0) {
+            hero
+
+            HStack(alignment: .top, spacing: Metrics.padColumnSpacing) {
+                VStack(spacing: Metrics.padSectionSpacing) {
+                    quickActions
+                    schedule
+                    if !plant.notes.isEmpty { notes }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                VStack(spacing: Metrics.padSectionSpacing) {
+                    if !plant.journal.isEmpty { photoStrip }
+                    history
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .padding(Metrics.padScreenPadding)
+            .maxContentWidth(Metrics.padContentWidth)
+        }
+    }
+
     // MARK: - Sections
 
     private var hero: some View {
@@ -83,13 +120,13 @@ struct PlantDetailView: View {
                     ZStack {
                         Color.leafGreen.opacity(0.14)
                         Image(systemName: "leaf.fill")
-                            .font(.system(size: 76))
+                            .font(.system(size: sizeClass.usesPadLayout ? 110 : 76))
                             .foregroundStyle(Color.leafGreen.opacity(0.55))
                     }
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 260)
+            .frame(height: sizeClass.usesPadLayout ? 380 : 260)
             .clipped()
             .overlay(alignment: .bottom) {
                 LinearGradient(
@@ -109,14 +146,14 @@ struct PlantDetailView: View {
                 }
 
                 Text(plant.name)
-                    .font(.title.bold())
+                    .font(sizeClass.usesPadLayout ? .largeTitle.bold() : .title.bold())
                     .foregroundStyle(heroTextColor)
 
                 Text(plant.displaySpecies)
                     .font(.subheadline)
                     .foregroundStyle(heroTextColor.opacity(0.85))
             }
-            .padding(Metrics.screenPadding)
+            .padding(Metrics.padding(for: sizeClass))
         }
     }
 
@@ -127,7 +164,7 @@ struct PlantDetailView: View {
     private var quickActions: some View {
         HStack(spacing: 10) {
             ForEach(CareKind.allCases) { kind in
-                CareActionButton(kind: kind) {
+                CareActionButton(kind: kind, showsPointerEffect: sizeClass.usesPadLayout) {
                     withAnimation(.snappy) {
                         PlantCare.log(kind, for: plant, in: context)
                     }
@@ -165,21 +202,38 @@ struct PlantDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "Journal", subtitle: "\(plant.journal.count) photos")
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(plant.journal.sorted { $0.date > $1.date }) { entry in
-                        VStack(alignment: .leading, spacing: 5) {
-                            JournalPhoto(entry: entry, size: 120)
-
-                            Text(entry.date, format: .dateTime.day().month(.abbreviated))
-                                .font(.caption2)
-                                .foregroundStyle(.textSecondary)
-                        }
+            if sizeClass.usesPadLayout {
+                // A column has room to show the whole timeline at once, so no side-scrolling.
+                LazyVGrid(columns: PadGrid.tiles(size: 116), alignment: .leading, spacing: 10) {
+                    ForEach(sortedJournal) { entry in
+                        journalTile(entry, size: 116)
                     }
                 }
-                .padding(.horizontal, 2)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(sortedJournal) { entry in
+                            journalTile(entry, size: 120)
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                }
+                .scrollClipDisabled()
             }
-            .scrollClipDisabled()
+        }
+    }
+
+    private var sortedJournal: [JournalEntry] {
+        plant.journal.sorted { $0.date > $1.date }
+    }
+
+    private func journalTile(_ entry: JournalEntry, size: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            JournalPhoto(entry: entry, size: size)
+
+            Text(entry.date, format: .dateTime.day().month(.abbreviated))
+                .font(.caption2)
+                .foregroundStyle(.textSecondary)
         }
     }
 
@@ -187,7 +241,7 @@ struct PlantDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "History")
 
-            let entries = plant.careLog.sorted { $0.date > $1.date }.prefix(12)
+            let entries = plant.careLog.sorted { $0.date > $1.date }.prefix(sizeClass.usesPadLayout ? 20 : 12)
 
             if entries.isEmpty {
                 Text("Nothing logged yet. Use the buttons above after you care for this plant.")
@@ -245,6 +299,7 @@ struct PlantDetailView: View {
 
 private struct CareActionButton: View {
     let kind: CareKind
+    var showsPointerEffect = false
     let action: () -> Void
 
     var body: some View {
@@ -266,6 +321,7 @@ private struct CareActionButton: View {
             )
         }
         .buttonStyle(.plain)
+        .pointerLift(showsPointerEffect)
         .accessibilityLabel("Log \(kind.title.lowercased())")
     }
 }

@@ -4,6 +4,7 @@ import UIKit
 
 struct JournalView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query(sort: \Plant.name) private var plants: [Plant]
     @Query(sort: \JournalEntry.date, order: .reverse) private var entries: [JournalEntry]
 
@@ -16,39 +17,54 @@ struct JournalView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
-                    if plants.count > 1 {
-                        filterBar
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if plants.count > 1 {
+                    filterBar
+                }
 
-                    if visibleEntries.isEmpty {
-                        emptyState
-                    } else {
-                        ForEach(visibleEntries) { entry in
-                            JournalCard(entry: entry) {
-                                context.delete(entry)
-                            }
-                        }
+                if visibleEntries.isEmpty {
+                    emptyState
+                } else if sizeClass.usesPadLayout {
+                    LazyVGrid(columns: PadGrid.columns(minimum: 340), alignment: .leading, spacing: 16) {
+                        entryCards
+                    }
+                } else {
+                    LazyVStack(alignment: .leading, spacing: 14) {
+                        entryCards
                     }
                 }
-                .padding(Metrics.screenPadding)
             }
-            .background(Color.canvas.ignoresSafeArea())
-            .navigationTitle("Journal")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isComposing = true
-                    } label: {
-                        Label("New entry", systemImage: "plus")
-                    }
-                    .disabled(plants.isEmpty)
+            .padding(Metrics.padding(for: sizeClass))
+            .maxContentWidth(Metrics.padContentWidth, enabled: sizeClass.usesPadLayout)
+        }
+        .background(Color.canvas.ignoresSafeArea())
+        .navigationTitle("Journal")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isComposing = true
+                } label: {
+                    Label("New entry", systemImage: "plus")
                 }
+                .disabled(plants.isEmpty)
+                .keyboardShortcut("n", modifiers: .command)
             }
-            .sheet(isPresented: $isComposing) {
-                JournalComposerView(plants: plants)
+        }
+        .sheet(isPresented: $isComposing) {
+            JournalComposerView(plants: plants)
+        }
+    }
+
+    @ViewBuilder
+    private var entryCards: some View {
+        ForEach(visibleEntries) { entry in
+            JournalCard(
+                entry: entry,
+                imageHeight: sizeClass.usesPadLayout ? 260 : 220,
+                showsPointerEffect: sizeClass.usesPadLayout
+            ) {
+                context.delete(entry)
             }
         }
     }
@@ -96,6 +112,8 @@ struct JournalView: View {
 
 private struct JournalCard: View {
     let entry: JournalEntry
+    var imageHeight: CGFloat = 220
+    var showsPointerEffect = false
     let onDelete: () -> Void
 
     var body: some View {
@@ -117,7 +135,7 @@ private struct JournalCard: View {
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: .infinity)
-                    .frame(height: 220)
+                    .frame(height: imageHeight)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: Metrics.smallCorner, style: .continuous))
             }
@@ -129,6 +147,7 @@ private struct JournalCard: View {
             }
         }
         .card()
+        .pointerLift(showsPointerEffect)
         .contextMenu {
             Button("Delete entry", systemImage: "trash", role: .destructive, action: onDelete)
         }
@@ -136,6 +155,8 @@ private struct JournalCard: View {
 }
 
 #Preview {
-    JournalView()
-        .modelContainer(PreviewData.container)
+    NavigationStack {
+        JournalView()
+    }
+    .modelContainer(PreviewData.container)
 }

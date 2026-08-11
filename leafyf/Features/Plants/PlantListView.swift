@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PlantListView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query(sort: \Plant.dateAdded, order: .reverse) private var plants: [Plant]
 
     @State private var searchText = ""
@@ -21,42 +22,58 @@ struct PlantListView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    if !plants.isEmpty {
-                        filterBar
-                    }
+        ScrollView {
+            VStack(spacing: 12) {
+                if !plants.isEmpty {
+                    filterBar
+                }
 
-                    if visiblePlants.isEmpty {
-                        emptyState
-                    } else {
-                        ForEach(visiblePlants) { plant in
-                            NavigationLink(value: plant) {
-                                PlantRow(plant: plant)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                if visiblePlants.isEmpty {
+                    emptyState
+                } else if sizeClass.usesPadLayout {
+                    LazyVGrid(columns: PadGrid.columns(minimum: 340), spacing: 16) {
+                        plantLinks
                     }
-                }
-                .padding(Metrics.screenPadding)
-            }
-            .background(Color.canvas.ignoresSafeArea())
-            .navigationTitle("Plants")
-            .navigationDestination(for: Plant.self) { PlantDetailView(plant: $0) }
-            .searchable(text: $searchText, prompt: "Search plants")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isAddingPlant = true
-                    } label: {
-                        Label("Add plant", systemImage: "plus")
+                } else {
+                    LazyVStack(spacing: 12) {
+                        plantLinks
                     }
                 }
             }
-            .sheet(isPresented: $isAddingPlant) {
-                PlantFormView(mode: .create)
+            .padding(Metrics.padding(for: sizeClass))
+            .maxContentWidth(Metrics.padContentWidth, enabled: sizeClass.usesPadLayout)
+        }
+        .background(Color.canvas.ignoresSafeArea())
+        .navigationTitle("Plants")
+        .navigationDestination(for: Plant.self) { PlantDetailView(plant: $0) }
+        .searchable(text: $searchText, prompt: "Search plants")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isAddingPlant = true
+                } label: {
+                    Label("Add plant", systemImage: "plus")
+                }
+                .keyboardShortcut("n", modifiers: .command)
             }
+        }
+        .sheet(isPresented: $isAddingPlant) {
+            PlantFormView(mode: .create)
+        }
+    }
+
+    @ViewBuilder
+    private var plantLinks: some View {
+        ForEach(visiblePlants) { plant in
+            NavigationLink(value: plant) {
+                if sizeClass.usesPadLayout {
+                    PlantCard(plant: plant)
+                } else {
+                    PlantRow(plant: plant)
+                }
+            }
+            .buttonStyle(.plain)
+            .pointerLift(sizeClass.usesPadLayout)
         }
     }
 
@@ -128,6 +145,8 @@ enum PlantFilter: String, CaseIterable, Identifiable {
 }
 
 #Preview {
-    PlantListView()
-        .modelContainer(PreviewData.container)
+    NavigationStack {
+        PlantListView()
+    }
+    .modelContainer(PreviewData.container)
 }

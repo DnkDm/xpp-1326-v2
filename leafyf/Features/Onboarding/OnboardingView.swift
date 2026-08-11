@@ -3,6 +3,8 @@ import SwiftUI
 struct OnboardingView: View {
     let onFinish: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     @State private var page = 0
 
     private let pages = Page.all
@@ -42,7 +44,11 @@ struct OnboardingView: View {
                 }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 40)
+                .maxContentWidth(480, enabled: sizeClass.usesPadLayout)
             }
+            // Onboarding is a single stream of text and one button; on an iPad it reads
+            // as a centred column rather than three words stranded across the screen.
+            .maxContentWidth(660, enabled: sizeClass.usesPadLayout)
         }
     }
 }
@@ -81,6 +87,8 @@ private struct Page: Identifiable {
 private struct PageView: View {
     let page: Page
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
@@ -88,9 +96,9 @@ private struct PageView: View {
             ZStack {
                 Circle()
                     .fill(page.tint.opacity(0.14))
-                    .frame(width: 200, height: 200)
+                    .frame(width: artSize, height: artSize)
                 Image(systemName: page.symbolName)
-                    .font(.system(size: 78))
+                    .font(.system(size: artSize * 0.39))
                     .foregroundStyle(page.tint)
             }
 
@@ -108,6 +116,10 @@ private struct PageView: View {
 
             Spacer()
         }
+    }
+
+    private var artSize: CGFloat {
+        sizeClass.usesPadLayout ? 260 : 200
     }
 }
 

@@ -14,6 +14,7 @@ struct PlantFormView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var draft = PlantDraft()
     @State private var photoItem: PhotosPickerItem?
@@ -40,7 +41,8 @@ struct PlantFormView: View {
                     remindersSection
                     notesSection
                 }
-                .padding(Metrics.screenPadding)
+                .padding(Metrics.padding(for: sizeClass))
+                .maxContentWidth(Metrics.padReadingWidth, enabled: sizeClass.usesPadLayout)
             }
             .background(Color.canvas.ignoresSafeArea())
             .navigationTitle(isEditing ? "Edit plant" : "New plant")

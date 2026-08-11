@@ -6,6 +6,7 @@ import UserNotifications
 struct SettingsView: View {
     @Query private var plants: [Plant]
     @Environment(\.openURL) private var openURL
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @AppStorage(StorageKey.appearance) private var appearance: Appearance = .system
     @AppStorage(StorageKey.reminderTime) private var reminderTimeRaw = ReminderTime.default.rawValue
@@ -19,22 +20,24 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                appearanceSection
-                remindersSection
-                librarySection
-                aboutSection
-            }
-            .canvasBackground()
-            .navigationTitle("Settings")
-            .sheet(isPresented: $isShowingLibrary) {
-                PlantLibraryView()
-            }
-            .task { notificationStatus = await NotificationService.shared.authorizationStatus() }
-            .onChange(of: reminderTimeRaw) {
-                Task { await NotificationService.shared.reschedule(for: plants) }
-            }
+        Form {
+            appearanceSection
+            remindersSection
+            librarySection
+            aboutSection
+        }
+        // Kept narrow on iPad: a settings row stretched across a 1000pt column is
+        // a long way for the eye to travel between its label and its control.
+        .scrollContentBackground(.hidden)
+        .maxContentWidth(Metrics.padReadingWidth, enabled: sizeClass.usesPadLayout)
+        .background(Color.canvas.ignoresSafeArea())
+        .navigationTitle("Settings")
+        .sheet(isPresented: $isShowingLibrary) {
+            PlantLibraryView()
+        }
+        .task { notificationStatus = await NotificationService.shared.authorizationStatus() }
+        .onChange(of: reminderTimeRaw) {
+            Task { await NotificationService.shared.reschedule(for: plants) }
         }
     }
 
@@ -116,6 +119,8 @@ extension Bundle {
 }
 
 #Preview {
-    SettingsView()
-        .modelContainer(PreviewData.container)
+    NavigationStack {
+        SettingsView()
+    }
+    .modelContainer(PreviewData.container)
 }

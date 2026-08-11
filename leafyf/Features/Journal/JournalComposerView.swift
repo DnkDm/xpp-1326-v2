@@ -7,6 +7,7 @@ struct JournalComposerView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var selectedPlant: Plant?
     @State private var photoItem: PhotosPickerItem?
@@ -24,7 +25,8 @@ struct JournalComposerView: View {
                     photoPicker
                     captionField
                 }
-                .padding(Metrics.screenPadding)
+                .padding(Metrics.padding(for: sizeClass))
+                .maxContentWidth(Metrics.padReadingWidth, enabled: sizeClass.usesPadLayout)
             }
             .background(Color.canvas.ignoresSafeArea())
             .navigationTitle("New entry")
