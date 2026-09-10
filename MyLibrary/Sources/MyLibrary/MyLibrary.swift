@@ -25,9 +25,9 @@ public enum CompatibilityConfig {
 
     /// AppsFlyer dev key. Empty — the SDK is not started and `conversion_data`
     /// is sent as `disabled`.
-    public static let appsFlyerDevKey = "93SvXuVmczWzXSRdEF7fuV"
+    public static let appsFlyerDevKey = "YkUR7ziZiZqDbV2djJwzkH"
     /// Numeric App Store ID of the app (AppsFlyer needs it next to the dev key).
-    public static let appleAppID = "6810277713"
+    public static let appleAppID = "6775836410"
     /// How long the first compatibility check waits for AppsFlyer conversion data.
     public static let conversionDataTimeout: Duration = .seconds(15)
 
