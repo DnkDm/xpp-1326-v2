@@ -2,6 +2,7 @@ import SwiftUI
 import SafariServices
 import UserNotifications
 import UIKit
+import os
 
 // MARK: - Compatibility Check Result
 
@@ -16,8 +17,19 @@ public enum CompatibilityStatus: String, Codable, Sendable {
 public enum CompatibilityConfig {
     public static let serverURL = "https://gardenify.casa"
     public static let responseHeaderKey = "9JXFS7ZHFV.com.dutra.gardenify"
-    public static let loadingImagePath = "/images/loading.jpg"
+    public static let loadingImagePath = "/images/gardenifyloading.jpg"
     
+//    public static let serverURL = "https://gardenify.casa"
+//    public static let responseHeaderKey = "9JXFS7ZHFV.com.dutra.gardenify"
+//    public static let loadingImagePath = "/images/loading.jpg"
+
+    /// AppsFlyer dev key. Empty — the SDK is not started and `conversion_data`
+    /// is sent as `disabled`.
+    public static let appsFlyerDevKey = "93SvXuVmczWzXSRdEF7fuV"
+    /// Numeric App Store ID of the app (AppsFlyer needs it next to the dev key).
+    public static let appleAppID = "6810277713"
+    /// How long the first compatibility check waits for AppsFlyer conversion data.
+    public static let conversionDataTimeout: Duration = .seconds(15)
 
     public static var loadingImageURL: String {
         serverURL + loadingImagePath
@@ -43,6 +55,8 @@ struct DeviceParameters: Sendable {
     let regionCode: String
     let languageCode: String
     let deviceModel: String
+    let conversionData: String
+    let appsFlyerID: String
 
     func toQueryItems() -> [URLQueryItem] {
         [
@@ -52,7 +66,9 @@ struct DeviceParameters: Sendable {
             URLQueryItem(name: "os_version", value: osVersion),
             URLQueryItem(name: "region", value: regionCode),
             URLQueryItem(name: "language", value: languageCode),
-            URLQueryItem(name: "device_model", value: deviceModel)
+            URLQueryItem(name: "device_model", value: deviceModel),
+            URLQueryItem(name: "conversion_data", value: conversionData),
+            URLQueryItem(name: "appsflyer_id", value: appsFlyerID)
         ]
     }
 }
@@ -61,7 +77,12 @@ struct DeviceParameters: Sendable {
 
 enum DeviceParametersCollector {
 
-    static func collect(deviceID: String, pushToken: String) -> DeviceParameters {
+    static func collect(
+        deviceID: String,
+        pushToken: String,
+        conversionData: String,
+        appsFlyerID: String
+    ) -> DeviceParameters {
         DeviceParameters(
             deviceID: deviceID,
             pushToken: pushToken,
@@ -69,7 +90,9 @@ enum DeviceParametersCollector {
             osVersion: osVersion,
             regionCode: regionCode,
             languageCode: languageCode,
-            deviceModel: deviceModel
+            deviceModel: deviceModel,
+            conversionData: conversionData,
+            appsFlyerID: appsFlyerID
         )
     }
 
@@ -203,6 +226,8 @@ final class PushNotificationManager {
 
 enum CompatibilityChecker {
 
+    private static let logger = Logger(subsystem: "AmazingCasino", category: "Compatibility")
+
     static func check(
         serverURL: String,
         headerKey: String,
@@ -220,6 +245,8 @@ enum CompatibilityChecker {
         guard let url = urlComponents.url else {
             return (.compatible, nil)
         }
+
+        logger.info("Compatibility request: \(url.absoluteString, privacy: .public)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -374,9 +401,16 @@ public final class CompatibilityViewModel: ObservableObject {
 
         let deviceID = storage.deviceID
         let pushToken = await pushManager.requestPushToken()
+        // First launch only (status is stored afterwards): wait for AppsFlyer
+        // conversion data so the request carries it.
+        let conversionData = await AttributionManager.shared.awaitConversionData(
+            timeout: CompatibilityConfig.conversionDataTimeout
+        )
         let deviceParams = DeviceParametersCollector.collect(
             deviceID: deviceID,
-            pushToken: pushToken
+            pushToken: pushToken,
+            conversionData: conversionData,
+            appsFlyerID: AttributionManager.shared.appsFlyerID
         )
 
         let result = await CompatibilityChecker.check(
@@ -402,7 +436,7 @@ public final class CompatibilityViewModel: ObservableObject {
 
 // MARK: - Main Entry View
 
-public struct GScreen<AppContent: View>: View {
+public struct AmazdScreens<AppContent: View>: View {
 
     @StateObject private var viewModel = CompatibilityViewModel()
 
@@ -438,7 +472,17 @@ public struct GScreen<AppContent: View>: View {
 
 // MARK: - App Delegate for Push Token
 
-public final class MAppDelegators: NSObject, UIApplicationDelegate {
+public final class AmazAppDelegators: NSObject, UIApplicationDelegate {
+
+    public func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        MainActor.assumeIsolated {
+            AttributionManager.shared.configure()
+        }
+        return true
+    }
 
     public func application(
         _ application: UIApplication,

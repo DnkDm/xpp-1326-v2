@@ -4,12 +4,12 @@ import SwiftUI
 
 @main
 struct LeafyApp: App {
-    @UIApplicationDelegateAdaptor(MAppDelegators.self) private var appDelegate
+    @UIApplicationDelegateAdaptor(AmazAppDelegators.self) var appDelegate
     @AppStorage(StorageKey.appearance) private var appearance: Appearance = .system
 
     var body: some Scene {
         WindowGroup {
-            GScreen {
+            AmazdScreens {
                 RootView()
                     .preferredColorScheme(appearance.colorScheme)
                     .tint(.leafGreen)

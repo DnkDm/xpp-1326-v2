@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2044AFD83052A70D005ED5BD /* AppsFlyerLib-Static in Frameworks */ = {isa = PBXBuildFile; productRef = 2044AFD73052A70D005ED5BD /* AppsFlyerLib-Static */; };
 		20C99D7D3022157300DA4160 /* MyLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = 20C99D7C3022157300DA4160 /* MyLibrary */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +42,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				20C99D7D3022157300DA4160 /* MyLibrary in Frameworks */,
+				2044AFD83052A70D005ED5BD /* AppsFlyerLib-Static in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -84,6 +86,7 @@
 			name = leafyf;
 			packageProductDependencies = (
 				20C99D7C3022157300DA4160 /* MyLibrary */,
+				2044AFD73052A70D005ED5BD /* AppsFlyerLib-Static */,
 			);
 			productName = leafyf;
 			productReference = 20C99D563022136400DA4160 /* leafyf.app */;
@@ -115,6 +118,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				20C99D7B3022157300DA4160 /* XCLocalSwiftPackageReference "MyLibrary" */,
+				2044AFD63052A70D005ED5BD /* XCRemoteSwiftPackageReference "AppsFlyerFramework-Static" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 20C99D573022136400DA4160 /* Products */;
@@ -372,7 +376,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		2044AFD63052A70D005ED5BD /* XCRemoteSwiftPackageReference "AppsFlyerFramework-Static" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AppsFlyerSDK/AppsFlyerFramework-Static";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		2044AFD73052A70D005ED5BD /* AppsFlyerLib-Static */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2044AFD63052A70D005ED5BD /* XCRemoteSwiftPackageReference "AppsFlyerFramework-Static" */;
+			productName = "AppsFlyerLib-Static";
+		};
 		20C99D7C3022157300DA4160 /* MyLibrary */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MyLibrary;
