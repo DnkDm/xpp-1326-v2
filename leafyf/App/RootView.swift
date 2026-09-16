@@ -20,19 +20,25 @@ struct RootView: View {
 
 // MARK: - Sections
 
-/// The five top-level destinations. The phone shows them in a tab bar, the iPad in a sidebar,
-/// so the list of sections lives in one place instead of being spelled out twice.
+/// The top-level destinations. The iPad sidebar lists all of them; the phone tab bar shows
+/// the five in `tabBarSections` and reaches Insights and Settings from the Today toolbar,
+/// so a tab bar never overflows into a "More" tab.
 enum AppSection: String, CaseIterable, Identifiable, Hashable {
-    case today, plants, calendar, journal, settings
+    case today, plants, explore, calendar, journal, insights, settings
 
     var id: String { rawValue }
+
+    /// Tabs the phone shows, in order.
+    static let tabBarSections: [AppSection] = [.today, .plants, .explore, .calendar, .journal]
 
     var title: String {
         switch self {
         case .today: "Today"
         case .plants: "Plants"
+        case .explore: "Explore"
         case .calendar: "Calendar"
         case .journal: "Journal"
+        case .insights: "Insights"
         case .settings: "Settings"
         }
     }
@@ -41,8 +47,10 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .today: "sun.max.fill"
         case .plants: "leaf.fill"
+        case .explore: "globe.europe.africa.fill"
         case .calendar: "calendar"
         case .journal: "photo.stack.fill"
+        case .insights: "chart.bar.xaxis"
         case .settings: "gearshape.fill"
         }
     }
@@ -52,8 +60,10 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .today: TodayView()
         case .plants: PlantListView()
+        case .explore: ExploreView()
         case .calendar: CareCalendarView()
         case .journal: JournalView()
+        case .insights: InsightsView()
         case .settings: SettingsView()
         }
     }
@@ -90,12 +100,35 @@ private struct TabLayout: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            ForEach(AppSection.allCases) { section in
+            ForEach(AppSection.tabBarSections) { section in
                 NavigationStack {
                     section.content
+                        .toolbar {
+                            if section == .today {
+                                todayToolbar
+                            }
+                        }
                 }
                 .tabItem { Label(section.title, systemImage: section.symbolName) }
                 .tag(section)
+            }
+        }
+    }
+
+    /// Insights and Settings live behind the Today screen on the phone, where a sixth and
+    /// seventh tab would have been folded into a "More" list.
+    private var todayToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            NavigationLink {
+                InsightsView()
+            } label: {
+                Label(AppSection.insights.title, systemImage: AppSection.insights.symbolName)
+            }
+
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Label(AppSection.settings.title, systemImage: AppSection.settings.symbolName)
             }
         }
     }
@@ -130,9 +163,23 @@ private struct Sidebar: View {
 
     var body: some View {
         List(selection: selectedSection) {
-            ForEach(AppSection.allCases) { section in
-                Label(section.title, systemImage: section.symbolName)
-                    .tag(section)
+            Section("Garden") {
+                ForEach([AppSection.today, .plants, .calendar, .journal]) { section in
+                    Label(section.title, systemImage: section.symbolName)
+                        .tag(section)
+                }
+            }
+
+            Section("Discover") {
+                ForEach([AppSection.explore, .insights]) { section in
+                    Label(section.title, systemImage: section.symbolName)
+                        .tag(section)
+                }
+            }
+
+            Section {
+                Label(AppSection.settings.title, systemImage: AppSection.settings.symbolName)
+                    .tag(AppSection.settings)
             }
         }
         .listStyle(.sidebar)

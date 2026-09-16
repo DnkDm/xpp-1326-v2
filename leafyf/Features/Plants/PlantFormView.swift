@@ -11,6 +11,8 @@ struct PlantFormView: View {
     }
 
     let mode: Mode
+    /// Pre-fills a new plant from the catalog, for the "Add to my plants" button in Explore.
+    var initialSpecies: PlantSpecies?
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -20,6 +22,7 @@ struct PlantFormView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var isChoosingSpecies = false
     @State private var isLoadingPhoto = false
+    @State private var hasLoadedDraft = false
 
     private var isEditing: Bool {
         if case .edit = mode { return true }
@@ -171,9 +174,18 @@ struct PlantFormView: View {
 
     // MARK: - Actions
 
+    /// Seeds the draft exactly once. `onAppear` fires again whenever the form comes back on
+    /// screen, and keying off the draft's contents would re-apply the starting values over
+    /// anything the user had since cleared.
     private func loadDraftIfNeeded() {
-        guard case .edit(let plant) = mode, draft.isEmpty else { return }
-        draft = PlantDraft(plant: plant)
+        guard !hasLoadedDraft else { return }
+        hasLoadedDraft = true
+
+        if case .edit(let plant) = mode {
+            draft = PlantDraft(plant: plant)
+        } else if let initialSpecies {
+            draft.apply(initialSpecies)
+        }
     }
 
     private func loadPhoto() async {
@@ -223,8 +235,6 @@ private struct PlantDraft {
     var photo: ProcessedPhoto?
     var existingPhotoData: Data?
 
-    var isEmpty: Bool { name.isEmpty && species.isEmpty && notes.isEmpty && photo == nil }
-
     init() {}
 
     init(plant: Plant) {
@@ -239,7 +249,9 @@ private struct PlantDraft {
 
     mutating func apply(_ species: PlantSpecies) {
         if name.isEmpty { name = species.name }
-        self.species = species.name
+        // The Latin name is what a care guide or a nursery label uses, so a plant set up from
+        // the catalog carries it; the common name is already the default plant name.
+        self.species = species.scientificName
         intervals[.watering] = species.wateringIntervalDays
         intervals[.fertilizing] = species.fertilizingIntervalDays
         intervals[.repotting] = species.repottingIntervalDays

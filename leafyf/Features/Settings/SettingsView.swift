@@ -23,7 +23,9 @@ struct SettingsView: View {
         Form {
             appearanceSection
             remindersSection
+            LocationSettingsSection()
             librarySection
+            DataSection()
             aboutSection
         }
         // Kept narrow on iPad: a settings row stretched across a 1000pt column is

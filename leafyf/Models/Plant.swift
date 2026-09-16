@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 @Model
 final class Plant {
@@ -126,6 +127,17 @@ extension Plant {
         case 0: "Due today"
         case 1: "Due tomorrow"
         default: "Due in \(Format.days(days))"
+        }
+    }
+
+    /// The one rule for "how urgent is this task", shared by every place that colours a
+    /// schedule — status lines, care rings, detail rows — so the same plant never reads as
+    /// two different degrees of urgency on two screens.
+    func urgencyTint(for kind: CareKind, from date: Date = .now, calendar: Calendar = .current) -> Color {
+        switch daysUntilDue(for: kind, from: date, calendar: calendar) {
+        case ..<0: .leafClay
+        case 0: .leafGold
+        default: kind.tint
         }
     }
 

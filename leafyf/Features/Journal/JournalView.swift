@@ -10,10 +10,25 @@ struct JournalView: View {
 
     @State private var isComposing = false
     @State private var plantFilter: Plant?
+    @State private var viewedEntry: JournalEntry?
+
+    private let calendar = Calendar.current
 
     private var visibleEntries: [JournalEntry] {
         guard let plantFilter else { return entries }
         return entries.filter { $0.plant?.id == plantFilter.id }
+    }
+
+    /// Newest month first, matching the query order, so the timeline reads backwards from today.
+    private var months: [JournalMonth] {
+        Dictionary(grouping: visibleEntries) { calendar.startOfMonth(for: $0.date) }
+            .map { JournalMonth(start: $0.key, entries: $0.value.sorted { $0.date > $1.date }) }
+            .sorted { $0.start > $1.start }
+    }
+
+    /// Photos want to be big on an iPad and still fit three to a row on a phone.
+    private var tileSize: CGFloat {
+        sizeClass.usesPadLayout ? 150 : 104
     }
 
     var body: some View {
@@ -25,14 +40,8 @@ struct JournalView: View {
 
                 if visibleEntries.isEmpty {
                     emptyState
-                } else if sizeClass.usesPadLayout {
-                    LazyVGrid(columns: PadGrid.columns(minimum: 340), alignment: .leading, spacing: 16) {
-                        entryCards
-                    }
                 } else {
-                    LazyVStack(alignment: .leading, spacing: 14) {
-                        entryCards
-                    }
+                    timeline
                 }
             }
             .padding(Metrics.padding(for: sizeClass))
@@ -54,20 +63,54 @@ struct JournalView: View {
         .sheet(isPresented: $isComposing) {
             JournalComposerView(plants: plants)
         }
+        .fullScreenCover(item: $viewedEntry) { entry in
+            PhotoViewer(entry: entry)
+        }
     }
 
-    @ViewBuilder
-    private var entryCards: some View {
-        ForEach(visibleEntries) { entry in
-            JournalCard(
-                entry: entry,
-                imageHeight: sizeClass.usesPadLayout ? 260 : 220,
-                showsPointerEffect: sizeClass.usesPadLayout
-            ) {
-                context.delete(entry)
+    // MARK: - Timeline
+
+    /// A grid rather than a stack of cards: the journal is about noticing change between
+    /// photos, and that only works when several of them are on screen at once. The month
+    /// headers stay pinned so it is always clear which stretch of time is being looked at.
+    private var timeline: some View {
+        LazyVStack(alignment: .leading, spacing: 18, pinnedViews: [.sectionHeaders]) {
+            ForEach(months) { month in
+                Section {
+                    LazyVGrid(
+                        columns: PadGrid.tiles(size: tileSize, spacing: 8),
+                        alignment: .leading,
+                        spacing: 8
+                    ) {
+                        ForEach(month.entries) { entry in
+                            tile(for: entry)
+                        }
+                    }
+                } header: {
+                    MonthHeader(start: month.start, count: month.entries.count)
+                }
             }
         }
     }
+
+    private func tile(for entry: JournalEntry) -> some View {
+        Button {
+            viewedEntry = entry
+        } label: {
+            JournalTile(entry: entry, size: tileSize)
+        }
+        .buttonStyle(.card)
+        .pointerLift(sizeClass.usesPadLayout)
+        .contextMenu {
+            Button("Delete entry", systemImage: "trash", role: .destructive) {
+                withAnimation(.snappy) { context.delete(entry) }
+            }
+        }
+        .accessibilityLabel("\(entry.plant?.name ?? "Removed plant"), \(entry.date.formatted(.dateTime.day().month(.wide)))")
+        .accessibilityValue(entry.caption)
+    }
+
+    // MARK: - Chrome
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -108,49 +151,90 @@ struct JournalView: View {
     }
 }
 
-// MARK: - Card
+// MARK: - Month
 
-private struct JournalCard: View {
-    let entry: JournalEntry
-    var imageHeight: CGFloat = 220
-    var showsPointerEffect = false
-    let onDelete: () -> Void
+private struct JournalMonth: Identifiable {
+    let start: Date
+    let entries: [JournalEntry]
+
+    var id: Date { start }
+}
+
+private struct MonthHeader: View {
+    let start: Date
+    let count: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(entry.plant?.name ?? "Removed plant")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.textPrimary)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(start, format: .dateTime.month(.wide).year())
+                .font(.headline)
+                .foregroundStyle(.textPrimary)
 
-                Spacer()
+            Text("\(count)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.leafGreen)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(Color.leafGreen.opacity(0.14), in: Capsule())
 
-                Text(entry.date, format: .dateTime.day().month(.abbreviated).year())
-                    .font(.caption)
-                    .foregroundStyle(.textSecondary)
+            Spacer()
+        }
+        .padding(.vertical, 6)
+        // Pinned headers scroll over the photos below them, so they need the canvas
+        // behind them rather than letting a leaf show through the words.
+        .background(Color.canvas)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Tile
+
+private struct JournalTile: View {
+    let entry: JournalEntry
+    let size: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            photo
+
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.55)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+
+            HStack(spacing: 4) {
+                Text(entry.plant?.name ?? "Removed")
+                    .font(.caption2.weight(.medium))
+                    .lineLimit(1)
+
+                if !entry.caption.isEmpty {
+                    Image(systemName: "text.quote")
+                        .font(.system(size: 8))
+                }
             }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 6)
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: Metrics.smallCorner, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: 5, y: 2)
+    }
 
-            if let image = UIImage(data: entry.photoData) {
+    private var photo: some View {
+        Group {
+            if let data = entry.thumbnailData ?? entry.photoData as Data?,
+               let image = UIImage(data: data) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: imageHeight)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: Metrics.smallCorner, style: .continuous))
-            }
-
-            if !entry.caption.isEmpty {
-                Text(entry.caption)
-                    .font(.subheadline)
-                    .foregroundStyle(.textSecondary)
+            } else {
+                Color.surfaceMuted
             }
         }
-        .card()
-        .pointerLift(showsPointerEffect)
-        .contextMenu {
-            Button("Delete entry", systemImage: "trash", role: .destructive, action: onDelete)
-        }
+        .frame(width: size, height: size)
+        .clipped()
     }
 }
 

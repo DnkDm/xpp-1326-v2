@@ -72,7 +72,7 @@ struct PlantListView: View {
                     PlantRow(plant: plant)
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.card)
             .pointerLift(sizeClass.usesPadLayout)
         }
     }

@@ -31,6 +31,8 @@ struct TodayView: View {
                 .maxContentWidth(Metrics.padContentWidth, enabled: sizeClass.usesPadLayout)
             }
             .background(Color.canvas.ignoresSafeArea())
+            // Pulling the list down is the gesture people already try for weather.
+            .refreshable { await WeatherStore.shared.refresh(force: true) }
         }
         .navigationTitle("Today")
     }
@@ -40,6 +42,8 @@ struct TodayView: View {
     private var column: some View {
         VStack(alignment: .leading, spacing: Metrics.sectionSpacing) {
             header
+
+            WeatherCard()
 
             if dueTasks.isEmpty && completedToday.isEmpty {
                 emptyState
@@ -58,6 +62,9 @@ struct TodayView: View {
     private var dashboard: some View {
         VStack(alignment: .leading, spacing: Metrics.padSectionSpacing) {
             header
+
+            // Full width above the split: the advice applies to every plant on the page.
+            WeatherCard()
 
             if dueTasks.isEmpty && completedToday.isEmpty {
                 emptyState

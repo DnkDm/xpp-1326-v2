@@ -29,12 +29,16 @@ struct PlantCard: View {
                     .foregroundStyle(.textSecondary)
                     .lineLimit(1)
 
-                Text(plant.statusText(for: .watering))
-                    .font(.subheadline)
-                    .foregroundStyle(plant.statusTint)
+                HStack(alignment: .bottom) {
+                    Text(plant.statusText(for: .watering))
+                        .font(.subheadline)
+                        .foregroundStyle(plant.urgencyTint(for: .watering))
 
-                CareProgressBar(progress: plant.progress(for: .watering), tint: plant.statusTint)
-                    .padding(.top, 2)
+                    Spacer(minLength: 8)
+
+                    CareRings(plant: plant, size: 32)
+                }
+                .padding(.top, 2)
             }
             .padding(Metrics.cardPadding)
         }
@@ -92,14 +96,15 @@ struct PlantRow: View {
                     .foregroundStyle(.textSecondary)
                     .lineLimit(1)
 
-                Text(plant.statusText(for: .watering))
-                    .font(.subheadline)
-                    .foregroundStyle(plant.statusTint)
+                HStack(alignment: .bottom) {
+                    Text(plant.statusText(for: .watering))
+                        .font(.subheadline)
+                        .foregroundStyle(plant.urgencyTint(for: .watering))
 
-                CareProgressBar(
-                    progress: plant.progress(for: .watering),
-                    tint: plant.statusTint
-                )
+                    Spacer(minLength: 8)
+
+                    CareRings(plant: plant, size: 28)
+                }
             }
         }
         .card()
@@ -110,13 +115,26 @@ struct PlantRow: View {
     }
 }
 
-extension Plant {
-    /// Colour for the watering status line and its progress bar.
-    var statusTint: Color {
-        switch mood {
-        case .overdue: .leafClay
-        case .dueToday: .leafGold
-        case .settlingIn, .thriving: .leafGreen
+// MARK: - Care rings
+
+/// All three schedules at a glance: each ring fills as its task comes due and takes on that
+/// task's `urgencyTint`, so a row says what needs doing without spelling it out three times.
+private struct CareRings: View {
+    let plant: Plant
+    var size: CGFloat = 30
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(CareKind.allCases) { kind in
+                CareRing(
+                    progress: plant.progress(for: kind),
+                    tint: plant.urgencyTint(for: kind),
+                    size: size,
+                    lineWidth: 3.5,
+                    symbolName: kind.symbolName
+                )
+            }
         }
+        .accessibilityHidden(true)
     }
 }

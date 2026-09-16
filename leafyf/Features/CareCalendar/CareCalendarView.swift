@@ -7,6 +7,8 @@ struct CareCalendarView: View {
 
     @State private var visibleMonth = Calendar.current.startOfMonth(for: .now)
     @State private var selectedDay = Calendar.current.startOfDay(for: .now)
+    /// Which way the last month change went, so the grid slides in from the side it came from.
+    @State private var monthStep = 1
 
     private let calendar = Calendar.current
 
@@ -68,8 +70,18 @@ struct CareCalendarView: View {
             monthHeader
             weekdayHeader
             monthGrid
+            legend
         }
         .card(padding: sizeClass.usesPadLayout ? 16 : 12)
+        .contentShape(Rectangle())
+        // Swiping a month grid sideways is the gesture people try first.
+        .gesture(
+            DragGesture(minimumDistance: 24)
+                .onEnded { value in
+                    guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                    step(by: value.translation.width < 0 ? 1 : -1)
+                }
+        )
     }
 
     private var monthHeader: some View {
@@ -131,6 +143,47 @@ struct CareCalendarView: View {
                 }
             }
         }
+        // A new month is a new grid, so it is given its own identity and slides in from
+        // whichever side the user came from instead of the numbers cross-fading in place.
+        .id(monthInterval.start)
+        .transition(
+            .asymmetric(
+                insertion: .move(edge: monthStep > 0 ? .trailing : .leading).combined(with: .opacity),
+                removal: .move(edge: monthStep > 0 ? .leading : .trailing).combined(with: .opacity)
+            )
+        )
+    }
+
+    /// What the dots under each day mean. Three colours with no key is a puzzle.
+    private var legend: some View {
+        HStack(spacing: 12) {
+            ForEach(CareKind.allCases) { kind in
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(kind.tint)
+                        .frame(width: 6, height: 6)
+
+                    Text(kind.title)
+                        .font(.caption2)
+                        .foregroundStyle(.textSecondary)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 5) {
+                Circle()
+                    .strokeBorder(Color.leafGreen, lineWidth: 1.5)
+                    .frame(width: 8, height: 8)
+
+                Text("Today")
+                    .font(.caption2)
+                    .foregroundStyle(.textSecondary)
+            }
+        }
+        .padding(.top, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Legend: watering, fertilizing and repotting colours, and the ring marking today")
     }
 
     // MARK: - Day detail
@@ -146,11 +199,11 @@ struct CareCalendarView: View {
             let events = occurrencesByDay[selectedDay] ?? []
 
             if events.isEmpty {
-                Text("Nothing scheduled.")
-                    .font(.subheadline)
-                    .foregroundStyle(.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .card()
+                EmptyStateCard(
+                    symbolName: "checkmark.circle",
+                    title: "Nothing scheduled",
+                    message: "No care falls due on this day."
+                )
             } else {
                 VStack(spacing: 0) {
                     ForEach(events) { event in
@@ -218,12 +271,16 @@ struct CareCalendarView: View {
 
     private func step(by months: Int) {
         guard let next = calendar.date(byAdding: .month, value: months, to: visibleMonth) else { return }
+        monthStep = months
         withAnimation(.snappy) { visibleMonth = next }
     }
 
     private func goToToday() {
+        let today = calendar.startOfMonth(for: .now)
+        monthStep = today >= visibleMonth ? 1 : -1
+
         withAnimation(.snappy) {
-            visibleMonth = calendar.startOfMonth(for: .now)
+            visibleMonth = today
             selectedDay = calendar.startOfDay(for: .now)
         }
     }
@@ -259,6 +316,13 @@ private struct DayCell: View {
                     .foregroundStyle(numberColor)
                     .frame(width: isRegular ? 40 : 30, height: isRegular ? 40 : 30)
                     .background(background, in: Circle())
+                    .overlay {
+                        // Today keeps its ring even while another day is selected, so the
+                        // grid never loses its anchor.
+                        if isToday {
+                            Circle().strokeBorder(Color.leafGreen, lineWidth: isSelected ? 0 : 1.5)
+                        }
+                    }
 
                 HStack(spacing: 3) {
                     ForEach(Array(dotColors.enumerated()), id: \.offset) { _, color in

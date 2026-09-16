@@ -69,7 +69,7 @@ enum SampleData {
             species: "Spathiphyllum",
             room: "Bathroom",
             notes: "Droops dramatically when thirsty, then recovers within the hour.",
-            photo: photo(hue: 0.42, symbol: "drop.fill"),
+            // No photo on purpose: shows the species illustration standing in.
             wateringIntervalDays: 6,
             fertilizingIntervalDays: 21,
             dateAdded: daysAgo(95)
@@ -95,18 +95,16 @@ enum SampleData {
             name: "New Snake Plant",
             species: "Dracaena trifasciata",
             room: "Bedroom",
-            photo: photo(hue: 0.20, symbol: "leaf.arrow.trianglehead.clockwise"),
+            // No photo on purpose: shows the species illustration standing in.
             wateringIntervalDays: 14,
             dateAdded: daysAgo(3)
         )
 
         let plants = [monstera, pothos, fig, lily, cactus, snake]
 
-        addHistory(to: monstera, waterEvery: 7, times: 9, fertilizeEvery: 28, times: 4)
-        addHistory(to: pothos, waterEvery: 8, times: 7, fertilizeEvery: 30, times: 3)
-        addHistory(to: fig, waterEvery: 9, times: 6, fertilizeEvery: 28, times: 2)
-        addHistory(to: lily, waterEvery: 6, times: 8, fertilizeEvery: 21, times: 2)
-        addHistory(to: cactus, waterEvery: 21, times: 3, fertilizeEvery: 90, times: 1)
+        for plant in plants {
+            addHistory(to: plant)
+        }
 
         addJournal(to: monstera, hue: 0.32, entries: [
             (60, "Third fenestrated leaf of the year."),
@@ -126,26 +124,31 @@ enum SampleData {
 
     // MARK: - History
 
-    /// Back-dated care entries so the history list and the calendar have something in them.
-    private static func addHistory(
-        to plant: Plant,
-        waterEvery waterInterval: Int,
-        times waterCount: Int,
-        fertilizeEvery fertilizeInterval: Int,
-        times fertilizeCount: Int
-    ) {
-        guard let lastWatered = plant.lastWatered else { return }
+    /// Eight weeks of back-dated care, so the calendar, the history list and the Insights
+    /// charts all have a real rhythm to show rather than a single entry per plant.
+    ///
+    /// Each kind walks backwards from the plant's last care date at its own cadence, shifted
+    /// by a repeating pattern of delays: some rounds land on time, some a few days late, which
+    /// is what makes the on-time rate a number worth showing.
+    private static func addHistory(to plant: Plant, weeks: Int = 8) {
+        let delays = [0, 2, -1, 0, 3, 1, 0, -2, 4, 0]
+        let earliest = daysAgo(weeks * 7)
 
-        for step in 0..<waterCount {
-            log(.watering, on: daysBefore(step * waterInterval, from: lastWatered), for: plant)
-        }
+        for kind in [CareKind.watering, .fertilizing] {
+            guard let last = plant.lastCareDate(for: kind) else { continue }
 
-        if let lastFertilized = plant.lastFertilized {
-            for step in 0..<fertilizeCount {
-                log(.fertilizing, on: daysBefore(step * fertilizeInterval, from: lastFertilized), for: plant)
+            var date = last
+            var step = 0
+
+            while date >= earliest {
+                log(kind, on: date, for: plant)
+                let gap = max(plant.interval(for: kind) + delays[step % delays.count], 1)
+                date = daysBefore(gap, from: date)
+                step += 1
             }
         }
 
+        // Repotting comes around once a year, so it is a single entry rather than a series.
         if let lastRepotted = plant.lastRepotted {
             log(.repotting, on: lastRepotted, for: plant)
         }

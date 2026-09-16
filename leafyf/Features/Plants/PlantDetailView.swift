@@ -13,6 +13,7 @@ struct PlantDetailView: View {
     @State private var isEditing = false
     @State private var isConfirmingDelete = false
     @State private var photoItem: PhotosPickerItem?
+    @State private var viewedEntry: JournalEntry?
 
     var body: some View {
         WidthReader { width in
@@ -23,6 +24,7 @@ struct PlantDetailView: View {
                     columnBody
                 }
             }
+            .coordinateSpace(name: HeroPhoto.space)
             .background(Color.canvas.ignoresSafeArea())
         }
         .navigationTitle(plant.name)
@@ -31,6 +33,10 @@ struct PlantDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Edit plant", systemImage: "pencil") { isEditing = true }
+
+                    ShareLink(item: PlantCareSheet.text(for: plant)) {
+                        Label("Share care sheet", systemImage: "square.and.arrow.up")
+                    }
 
                     PhotosPicker(selection: $photoItem, matching: .images) {
                         Label("Add journal photo", systemImage: "camera")
@@ -60,6 +66,9 @@ struct PlantDetailView: View {
             }
         } message: {
             Text("Its care history and journal photos are deleted too.")
+        }
+        .fullScreenCover(item: $viewedEntry) { entry in
+            PhotoViewer(entry: entry)
         }
         .task(id: photoItem) {
             await addJournalPhoto()
@@ -111,30 +120,14 @@ struct PlantDetailView: View {
 
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
-            Group {
-                if let data = plant.photoData, let image = UIImage(data: data) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    ZStack {
-                        Color.leafGreen.opacity(0.14)
-                        Image(systemName: "leaf.fill")
-                            .font(.system(size: sizeClass.usesPadLayout ? 110 : 76))
-                            .foregroundStyle(Color.leafGreen.opacity(0.55))
-                    }
+            HeroPhoto(plant: plant, height: sizeClass.usesPadLayout ? 380 : 260)
+                .overlay(alignment: .bottom) {
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.55)],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
                 }
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: sizeClass.usesPadLayout ? 380 : 260)
-            .clipped()
-            .overlay(alignment: .bottom) {
-                LinearGradient(
-                    colors: [.clear, .black.opacity(plant.photoData == nil ? 0 : 0.55)],
-                    startPoint: .center,
-                    endPoint: .bottom
-                )
-            }
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
@@ -158,7 +151,8 @@ struct PlantDetailView: View {
     }
 
     private var heroTextColor: Color {
-        plant.photoData == nil ? .textPrimary : .white
+        // Photo or illustration, the hero always carries a dark gradient under the title.
+        .white
     }
 
     private var quickActions: some View {
@@ -228,13 +222,20 @@ struct PlantDetailView: View {
     }
 
     private func journalTile(_ entry: JournalEntry, size: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            JournalPhoto(entry: entry, size: size)
+        Button {
+            viewedEntry = entry
+        } label: {
+            VStack(alignment: .leading, spacing: 5) {
+                JournalPhoto(entry: entry, size: size)
 
-            Text(entry.date, format: .dateTime.day().month(.abbreviated))
-                .font(.caption2)
-                .foregroundStyle(.textSecondary)
+                Text(entry.date, format: .dateTime.day().month(.abbreviated))
+                    .font(.caption2)
+                    .foregroundStyle(.textSecondary)
+            }
         }
+        .buttonStyle(.card)
+        .pointerLift(sizeClass.usesPadLayout)
+        .accessibilityLabel("Journal photo, \(entry.date.formatted(.dateTime.day().month(.wide)))")
     }
 
     private var history: some View {
@@ -244,11 +245,11 @@ struct PlantDetailView: View {
             let entries = plant.careLog.sorted { $0.date > $1.date }.prefix(sizeClass.usesPadLayout ? 20 : 12)
 
             if entries.isEmpty {
-                Text("Nothing logged yet. Use the buttons above after you care for this plant.")
-                    .font(.subheadline)
-                    .foregroundStyle(.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .card()
+                EmptyStateCard(
+                    symbolName: "clock.arrow.circlepath",
+                    title: "Nothing logged yet",
+                    message: "Use the buttons above once you have cared for this plant."
+                )
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(entries)) { entry in
@@ -302,12 +303,21 @@ private struct CareActionButton: View {
     var showsPointerEffect = false
     let action: () -> Void
 
+    /// Counts taps rather than tracking a flag, so the symbol bounces again on every log
+    /// even when nothing else about the button changed. It also drives the single piece of
+    /// haptic feedback for a log — `.sensoryFeedback` below, and nothing in the action.
+    @State private var logCount = 0
+
     var body: some View {
-        Button(action: action) {
+        Button {
+            logCount += 1
+            action()
+        } label: {
             VStack(spacing: 6) {
                 Image(systemName: kind.symbolName)
                     .font(.title3)
                     .foregroundStyle(kind.tint)
+                    .symbolEffect(.bounce, value: logCount)
                 Text(kind.actionTitle)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.textPrimary)
@@ -320,8 +330,9 @@ private struct CareActionButton: View {
                     .strokeBorder(kind.tint.opacity(0.3), lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.card)
         .pointerLift(showsPointerEffect)
+        .sensoryFeedback(.success, trigger: logCount)
         .accessibilityLabel("Log \(kind.title.lowercased())")
     }
 }
@@ -330,32 +341,75 @@ private struct ScheduleRow: View {
     let plant: Plant
     let kind: CareKind
 
+    private var isOverdue: Bool { plant.daysUntilDue(for: kind) < 0 }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Image(systemName: kind.symbolName)
+        HStack(spacing: 14) {
+            CareRing(
+                progress: plant.progress(for: kind),
+                tint: plant.urgencyTint(for: kind),
+                size: 46,
+                lineWidth: 5,
+                symbolName: kind.symbolName
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(kind.title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.textPrimary)
+
+                    Spacer(minLength: 8)
+
+                    Text("every \(Format.days(plant.interval(for: kind)))")
+                        .font(.caption)
+                        .foregroundStyle(.textSecondary)
+                }
+
+                Text(plant.statusText(for: kind))
                     .font(.caption)
-                    .foregroundStyle(kind.tint)
-                    .frame(width: 20)
-
-                Text(kind.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.textPrimary)
-
-                Spacer()
-
-                Text("every \(Format.days(plant.interval(for: kind)))")
-                    .font(.caption)
-                    .foregroundStyle(.textSecondary)
+                    .foregroundStyle(isOverdue ? Color.leafClay : .textSecondary)
             }
-
-            CareProgressBar(progress: plant.progress(for: kind), tint: kind.tint)
-
-            Text(plant.statusText(for: kind))
-                .font(.caption)
-                .foregroundStyle(plant.daysUntilDue(for: kind) < 0 ? Color.leafClay : .textSecondary)
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The photo behind the plant's name, which stretches as the screen is pulled down.
+///
+/// A header that only ever sits still makes a detail screen feel like a document; letting it
+/// follow the scroll costs one `GeometryReader` and makes the whole screen feel physical.
+private struct HeroPhoto: View {
+    static let space = "plantScroll"
+
+    let plant: Plant
+    let height: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let stretch = max(proxy.frame(in: .named(Self.space)).minY, 0)
+
+            photo
+                .frame(width: proxy.size.width, height: height + stretch)
+                .clipped()
+                .offset(y: -stretch)
+        }
+        .frame(height: height)
+    }
+
+    private var photo: some View {
+        Group {
+            if let data = plant.photoData, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                // The species illustration fills in until the owner adds a real photo.
+                Color.clear.overlay {
+                    Image(plant.artworkName).resizable().scaledToFill()
+                }
+            }
+        }
     }
 }
 

@@ -61,25 +61,58 @@ private struct Page: Identifiable {
     let tint: Color
     let title: String
     let subtitle: String
+    /// Small symbols pinned around the main one, so each page has an illustration rather
+    /// than one glyph in a circle. Positions are fractions of the circle's radius.
+    var accents: [Accent] = []
+
+    struct Accent: Identifiable {
+        let id = UUID()
+        let symbolName: String
+        let tint: Color
+        let x: CGFloat
+        let y: CGFloat
+    }
 
     static let all: [Page] = [
         Page(
             symbolName: "leaf.fill",
             tint: .leafGreen,
             title: "Every plant,\nin one place",
-            subtitle: "Keep names, rooms and care schedules together instead of in your head."
+            subtitle: "Keep names, rooms and care schedules together instead of in your head.",
+            accents: [
+                Accent(symbolName: "house.fill", tint: .leafMint, x: -0.78, y: -0.55),
+                Accent(symbolName: "sparkles", tint: .leafGold, x: 0.74, y: 0.58),
+            ]
         ),
         Page(
             symbolName: "drop.fill",
             tint: .leafWater,
             title: "Never miss\na watering",
-            subtitle: "Leafy works out what is due and reminds you at a time you choose."
+            subtitle: "Leafy works out what is due and reminds you at a time you choose.",
+            accents: [
+                Accent(symbolName: "bell.badge.fill", tint: .leafGold, x: 0.78, y: -0.52),
+                Accent(symbolName: "calendar", tint: .leafGreen, x: -0.76, y: 0.56),
+            ]
         ),
         Page(
             symbolName: "camera.fill",
             tint: .leafGold,
             title: "Watch them\ngrow",
-            subtitle: "Add a photo now and then, and the journal turns it into a timeline."
+            subtitle: "Add a photo now and then, and the journal turns it into a timeline.",
+            accents: [
+                Accent(symbolName: "photo.stack.fill", tint: .leafGreen, x: -0.8, y: -0.5),
+                Accent(symbolName: "chart.bar.fill", tint: .leafClay, x: 0.76, y: 0.55),
+            ]
+        ),
+        Page(
+            symbolName: "globe.europe.africa.fill",
+            tint: .leafMint,
+            title: "Explore, and\ncheck the sky",
+            subtitle: "Look up any species from inside the app, and let today's weather nudge your care — a mist in dry air, a drink sooner in a heatwave.",
+            accents: [
+                Accent(symbolName: "cloud.sun.fill", tint: .leafWater, x: 0.8, y: -0.5),
+                Accent(symbolName: "magnifyingglass", tint: .leafGreen, x: -0.76, y: 0.55),
+            ]
         ),
     ]
 }
@@ -88,19 +121,15 @@ private struct PageView: View {
     let page: Page
 
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var hasAppeared = false
 
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(page.tint.opacity(0.14))
-                    .frame(width: artSize, height: artSize)
-                Image(systemName: page.symbolName)
-                    .font(.system(size: artSize * 0.39))
-                    .foregroundStyle(page.tint)
-            }
+            artwork
 
             VStack(spacing: 12) {
                 Text(page.title)
@@ -116,6 +145,38 @@ private struct PageView: View {
 
             Spacer()
         }
+        .onAppear { withAnimation(.snappy(duration: 0.45)) { hasAppeared = true } }
+    }
+
+    /// The main symbol in its tinted circle, with two smaller ones settling in around it.
+    private var artwork: some View {
+        ZStack {
+            Circle()
+                .fill(page.tint.opacity(0.14))
+                .frame(width: artSize, height: artSize)
+
+            Image(systemName: page.symbolName)
+                .font(.system(size: artSize * 0.39))
+                .foregroundStyle(page.tint)
+
+            ForEach(page.accents) { accent in
+                Image(systemName: accent.symbolName)
+                    .font(.system(size: artSize * 0.14))
+                    .foregroundStyle(accent.tint)
+                    .padding(artSize * 0.075)
+                    .background(Color.surface, in: Circle())
+                    .shadow(color: .black.opacity(0.07), radius: 6, y: 2)
+                    .offset(x: accent.x * artSize / 2, y: accent.y * artSize / 2)
+                    .scaleEffect(scale)
+                    .opacity(hasAppeared ? 1 : 0)
+            }
+        }
+        .frame(width: artSize, height: artSize)
+        .accessibilityHidden(true)
+    }
+
+    private var scale: CGFloat {
+        reduceMotion || hasAppeared ? 1 : 0.6
     }
 
     private var artSize: CGFloat {

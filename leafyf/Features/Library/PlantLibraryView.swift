@@ -13,6 +13,7 @@ struct PlantLibraryView: View {
         guard !searchText.isEmpty else { return PlantSpecies.catalog }
         return PlantSpecies.catalog.filter {
             $0.name.localizedCaseInsensitiveContains(searchText)
+                || $0.scientificName.localizedCaseInsensitiveContains(searchText)
                 || $0.summary.localizedCaseInsensitiveContains(searchText)
         }
     }
@@ -43,6 +44,11 @@ struct PlantLibraryView: View {
             .navigationTitle("Plant library")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "Search species")
+            // "Learn more" pushes the Wikipedia article inside the picker, so reading up
+            // on a species never costs the user the form they were filling in.
+            .navigationDestination(for: ArticleRequest.self) { request in
+                SpeciesArticleView(request: request, onUseSpecies: onSelect)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(onSelect == nil ? "Done" : "Cancel") { dismiss() }
@@ -85,44 +91,82 @@ private struct SpeciesCard: View {
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 14) {
-                Text(species.emoji)
-                    .font(.system(size: 34))
-                    .frame(width: 58, height: 58)
-                    .background(Color.canvas, in: RoundedRectangle(cornerRadius: Metrics.smallCorner, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(species.name)
-                        .font(.headline)
-                        .foregroundStyle(.textPrimary)
-
-                    Text(species.summary)
-                        .font(.caption)
-                        .foregroundStyle(.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 12) {
-                        Label("every \(Format.days(species.wateringIntervalDays))", systemImage: "drop.fill")
-                            .foregroundStyle(Color.leafWater)
-                        Label(species.light, systemImage: "sun.max.fill")
-                            .foregroundStyle(Color.leafGold)
-                    }
-                    .font(.caption2)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if isSelectable {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(Color.leafGreen)
-                }
+        VStack(spacing: 12) {
+            Button(action: onTap) {
+                details
             }
-            .card()
+            .buttonStyle(.plain)
+            .pointerLift(showsPointerEffect && isSelectable)
+            .disabled(!isSelectable)
+
+            Divider().overlay(Color.hairline)
+
+            learnMoreLink
+        }
+        .card()
+    }
+
+    private var details: some View {
+        HStack(spacing: 14) {
+            Image(species.artworkName)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: Metrics.smallCorner, style: .continuous))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(species.name)
+                    .font(.headline)
+                    .foregroundStyle(.textPrimary)
+
+                Text(species.summary)
+                    .font(.caption)
+                    .foregroundStyle(.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 12) {
+                    Label("every \(Format.days(species.wateringIntervalDays))", systemImage: "drop.fill")
+                        .foregroundStyle(Color.leafWater)
+                    Label(species.light, systemImage: "sun.max.fill")
+                        .foregroundStyle(Color.leafGold)
+                }
+                .font(.caption2)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if isSelectable {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.leafGreen)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    /// Kept as its own control below the card body rather than an icon inside it: nested
+    /// tappable areas inside a button label swallow each other's taps.
+    private var learnMoreLink: some View {
+        NavigationLink(value: ArticleRequest(species: species)) {
+            HStack(spacing: 6) {
+                Image(systemName: "book.pages")
+                Text("Learn more")
+                Text("·")
+                Text(species.scientificName)
+                    .italic()
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+            }
+            .font(.caption.weight(.medium))
+            .foregroundStyle(Color.leafGreen)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .pointerLift(showsPointerEffect && isSelectable)
-        .disabled(!isSelectable)
+        .pointerLift(showsPointerEffect)
     }
 }
 

@@ -7,6 +7,11 @@ enum StorageKey {
     static let hasCompletedOnboarding = "hasCompletedOnboarding"
     static let appearance = "appearance"
     static let reminderTime = "reminderTime"
+
+    /// The place the weather card reports on, as JSON (`SavedPlace`).
+    static let savedPlace = "savedPlace"
+    /// Last successful `WeatherSnapshot`, so Today has something to show while offline.
+    static let weatherCache = "weatherCache"
 }
 
 // MARK: - Appearance

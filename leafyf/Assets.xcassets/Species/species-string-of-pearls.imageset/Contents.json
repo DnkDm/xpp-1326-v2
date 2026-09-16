@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "string-of-pearls.jpg",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
