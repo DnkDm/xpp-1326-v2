@@ -200,7 +200,11 @@ private final class DelegateProxy: NSObject, CLLocationManagerDelegate, @uncheck
 // MARK: - Continuation guard
 
 /// Core Location can call back more than once; a continuation may only be resumed once.
-private final class ResumeOnce<Success, Failure: Error> {
+///
+/// `nonisolated` is required: with the project's default MainActor isolation this generic
+/// class gets an isolated deinit, and the Swift 6.3 optimizer crashes on it in Release
+/// (EarlyPerfInliner, `isCallerAndCalleeLayoutConstraintsCompatible`). Debug builds are fine.
+private nonisolated final class ResumeOnce<Success, Failure: Error> {
     private var continuation: CheckedContinuation<Success, Failure>?
 
     init(_ continuation: CheckedContinuation<Success, Failure>) {
