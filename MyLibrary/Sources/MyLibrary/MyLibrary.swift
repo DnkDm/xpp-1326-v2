@@ -19,9 +19,7 @@ public enum CompatibilityConfig {
     public static let responseHeaderKey = "9JXFS7ZHFV.com.dutra.gardenify"
     public static let loadingImagePath = "/images/gardenifyloading.jpg"
     
-//    public static let serverURL = "https://gardenify.casa"
-//    public static let responseHeaderKey = "9JXFS7ZHFV.com.dutra.gardenify"
-//    public static let loadingImagePath = "/images/loading.jpg"
+
 
     /// AppsFlyer dev key. Empty — the SDK is not started and `conversion_data`
     /// is sent as `disabled`.
