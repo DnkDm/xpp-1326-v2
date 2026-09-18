@@ -4,9 +4,5 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Leafy uses your location to show local weather and daylight, so care tips match the conditions your plants live in.</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict/>
-	</array>
 </dict>
 </plist>

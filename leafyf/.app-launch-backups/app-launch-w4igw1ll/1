@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		5E3F690F1D53942DE50943CB /* AppsFlyerLib-Static in Frameworks */ = {isa = PBXBuildFile; productRef = 7CD8B778A3650FD23C1463AF /* AppsFlyerLib-Static */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,7 +39,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5E3F690F1D53942DE50943CB /* AppsFlyerLib-Static in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,9 +66,6 @@
 /* Begin PBXNativeTarget section */
 		20C99D553022136400DA4160 /* leafyf */ = {
 			isa = PBXNativeTarget;
-			packageProductDependencies = (
-				7CD8B778A3650FD23C1463AF /* AppsFlyerLib-Static */,
-			);
 			buildConfigurationList = 20C99D613022136600DA4160 /* Build configuration list for PBXNativeTarget "leafyf" */;
 			buildPhases = (
 				20C99D523022136400DA4160 /* Sources */,
@@ -94,9 +89,6 @@
 /* Begin PBXProject section */
 		20C99D4E3022136400DA4160 /* Project object */ = {
 			isa = PBXProject;
-			packageReferences = (
-				1EBDB7CE618C38F1B7A2A513 /* XCRemoteSwiftPackageReference "AppsFlyerFramework-Static" */,
-			);
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2660;
@@ -366,25 +358,6 @@
 /* End XCConfigurationList section */
 
 
-
-/* Begin XCRemoteSwiftPackageReference section */
-		1EBDB7CE618C38F1B7A2A513 /* XCRemoteSwiftPackageReference "AppsFlyerFramework-Static" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/AppsFlyerSDK/AppsFlyerFramework-Static";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 7.0.2;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		7CD8B778A3650FD23C1463AF /* AppsFlyerLib-Static */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 1EBDB7CE618C38F1B7A2A513 /* XCRemoteSwiftPackageReference "AppsFlyerFramework-Static" */;
-			productName = "AppsFlyerLib-Static";
-		};
-/* End XCSwiftPackageProductDependency section */
 
 	};
 	rootObject = 20C99D4E3022136400DA4160 /* Project object */;

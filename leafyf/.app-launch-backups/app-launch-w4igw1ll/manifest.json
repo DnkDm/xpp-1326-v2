@@ -1,0 +1,17 @@
+[
+  {
+    "path": "/Users/dmitrijdeneko/swift_app/leafyf/leafyf/App/LeafyApp.swift",
+    "backup": "0",
+    "installed_sha256": "ede794b861e9b0a5fd4498f4e227013d6a40575131cf6ee7b3e4162831acc8e4"
+  },
+  {
+    "path": "/Users/dmitrijdeneko/swift_app/leafyf/leafyf.xcodeproj/project.pbxproj",
+    "backup": "1",
+    "installed_sha256": "3ecf0f7f015d6535f4f62858489c2206c76f8b0fd70d70a1309d20349b8d0175"
+  },
+  {
+    "path": "/Users/dmitrijdeneko/swift_app/leafyf/leafyf/leafyf.entitlements",
+    "backup": "2",
+    "installed_sha256": "7bf8e813b39b5382f98ced7ed4953167133f1549202cfa1583ac9ec795151059"
+  }
+]

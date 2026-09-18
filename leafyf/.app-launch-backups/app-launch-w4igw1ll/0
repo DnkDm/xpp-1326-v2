@@ -1,0 +1,16 @@
+import SwiftData
+import SwiftUI
+
+@main
+struct LeafyApp: App {
+    @AppStorage(StorageKey.appearance) private var appearance: Appearance = .system
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .preferredColorScheme(appearance.colorScheme)
+                .tint(.leafGreen)
+        }
+        .modelContainer(for: [Plant.self, CareLogEntry.self, JournalEntry.self])
+    }
+}
